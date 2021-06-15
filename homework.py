@@ -6,12 +6,22 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 
-PRAKTIKUM_TOKEN = os.getenv("PRAKTIKUM_TOKEN")
+PRAKTIKUM_TOKEN = 'OAuth ' + os.getenv('PRAKTIKUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+STATUSES = {
+    'rejected': 'К сожалению в работе нашлись ошибки.',
+    'reviewing': 'Работа взята на проверку',
+    'approved': (
+        'Ревьюеру всё понравилось, можно приступать к следующему уроку.'
+    ),
+}
+REQUEST_HEADERS = {'Authorization': PRAKTIKUM_TOKEN}
+PRAKTIKUM_URL = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
 
 
 logging.basicConfig(
@@ -23,28 +33,25 @@ logger = logging.getLogger(__name__)
 
 
 def parse_homework_status(homework):
-    dictionary = {
-        'rejected': 'К сожалению в работе нашлись ошибки.',
-        'reviewing': 'Работа взята на проверку',
-        'approved': (
-            'Ревьюеру всё понравилось, можно приступать к следующему уроку.'
-        ),
-    }
     homework_name = homework.get('homework_name')
     if homework_name is None:
         logging.error('Работа не найдена')
         return {}
-    verdict = dictionary[homework.get('status')]
+    verdict = STATUSES.get(homework.get('status'), 'Статус неизвестен')
     return f'У вас проверили работу "{homework_name}"!\n\n{verdict}'
 
 
 def get_homework_statuses(current_timestamp):
     logger.info('Запрос на сервер отправлен')
-    homework_statuses = requests.get(
-        'https://praktikum.yandex.ru/api/user_api/homework_statuses/',
-        params={'from_date': current_timestamp},
-        headers={'Authorization': f'OAuth {PRAKTIKUM_TOKEN}'}
-    )
+    try:
+        homework_statuses = requests.get(
+            PRAKTIKUM_URL,
+            params={'from_date': current_timestamp},
+            headers=REQUEST_HEADERS
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error(e, exc_info=True)
+        time.sleep(5)
     logger.info('Ответ с сервера получен')
     return homework_statuses.json()
 
@@ -73,8 +80,6 @@ def main():
 
         except Exception as e:
             logger.error(e, exc_info=True)
-            text = f'Бот столкнулся с ошибкой: {e}'
-            send_message(text, bot_client)
             time.sleep(5)
 
 
