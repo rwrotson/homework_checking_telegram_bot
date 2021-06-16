@@ -49,10 +49,9 @@ def get_homework_statuses(current_timestamp):
             params={'from_date': current_timestamp},
             headers=REQUEST_HEADERS
         )
+        logger.info('Ответ с сервера получен')
     except requests.exceptions.RequestException as e:
         logger.error(e, exc_info=True)
-        time.sleep(5)
-    logger.info('Ответ с сервера получен')
     return homework_statuses.json()
 
 
